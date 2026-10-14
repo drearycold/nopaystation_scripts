@@ -183,7 +183,6 @@ do
             ;;
         -a|--all)
             UPDATE_ALL=1
-            shift
             ;;
         *)
             echo "Invalid parameter used."

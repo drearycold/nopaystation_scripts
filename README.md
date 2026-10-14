@@ -95,11 +95,13 @@ I can recommend [this](http://renascene.com/psv/) site for searching title IDs.
 ### nps\_update.sh
 With this script you can download the latest or all available PS Vita game updates.
 There is a optional first parameter "-a" and the second is the game's title ID.
-It places the files in a created directory from the current working directory named <\TITLE\_ID\_update>.
+It places files under `NPS_OUTPUT_DIR` in `<Game Name> [<TITLE_ID>] [<Region>]_update`, reusing existing named or legacy `<TITLE_ID>_update` folders. `DESTDIR` overrides the folder name. Each patch is checked by title ID and version before downloading: old versions do not prevent downloading the latest, and `-a` fills in every missing version. All requested versions already present returns exit code 5; any new downloads return 0. Folders are not renamed or nested on repeat runs.
 For example:
 ```bash
 ./nps_update.sh [-a] PCSE00986
 ```
+
+`pyNPU.py --link --with-version --title-id PCSE00986` prints tab-separated version/URL records for these checks; add `--all` for every version. Ordinary `--link` output remains one URL per line. Run the offline regression suite with `python3 -m unittest discover -s tests`.
 
 ### nps\_dlc.sh
 This script downloads every DLC found for a specific title ID with available zRIF key.

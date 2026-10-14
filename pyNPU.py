@@ -28,6 +28,7 @@ parser = argparse.ArgumentParser(prog='pyNPU', usage='%(prog)s [options]')
 parser.add_argument('--changelog', '-c', action='store_true', help="Print changelog to stdout")
 parser.add_argument('--bbcode', '-b', action='store_true', help="Change changelog to format to BB Code")
 parser.add_argument('--link', '-l', action='store_true', help="Print download link of the latest update")
+parser.add_argument('--with-version', action='store_true', help="With --link, print version and URL separated by a tab")
 parser.add_argument('--name', '-n', action='store_true', help="Print the name of the game (same as in the sfo)")
 parser.add_argument('--all', '-a', action='store_true', help="Print all updates available")
 parser.add_argument('--title-id', '-t', nargs=1, help="specify the Title ID of game")
@@ -63,7 +64,10 @@ except:
 update_xml = xml.fromstring(r.content)
 
 # make sure several arguments cannot be combined
-if args.changelog and args.link:
+if args.with_version and not args.link:
+    print('Error: Cannot use "with-version" without "link"')
+    sys.exit(1)
+elif args.changelog and args.link:
     print('Error: Cannot combine parameter "changelog" and "link"')
     sys.exit(1)
 elif args.changelog and args.all:
@@ -81,6 +85,13 @@ elif args.title_id and not (args.link or args.changelog or args.name):
 elif args.bbcode and not args.changelog:
     print('Error: Cannot use parameter "bbcode" without "changelog"')
     sys.exit(1)
+
+def print_package_link(package, url):
+    if args.with_version:
+        print("%s\t%s" % (package.get('version'), url))
+    else:
+        print(url)
+
 
 # not sure if the if the check is really needed
 if update_xml.get('status') == "alive":
@@ -132,9 +143,9 @@ if update_xml.get('status') == "alive":
                     for subpackage in package:
                 # print hybrid_package link when available
                         if subpackage.tag == 'hybrid_package':
-                            print(subpackage.get('url'))
+                            print_package_link(package, subpackage.get('url'))
                 else:
-                    print(package.get('url'))
+                    print_package_link(package, package.get('url'))
         else:
             for package in update_xml.iter('package'):
                 if 'version' not in locals():
@@ -150,9 +161,9 @@ if update_xml.get('status') == "alive":
                         for subpackage in package:
                             # print hybrid_package link when available
                             if subpackage.tag == 'hybrid_package':
-                                print(subpackage.get('url'))
+                                print_package_link(package, subpackage.get('url'))
                     else:
-                        print(package.get('url'))
+                        print_package_link(package, package.get('url'))
     elif args.name:
         for name in update_xml.iter('title'):
             print(name.text)
