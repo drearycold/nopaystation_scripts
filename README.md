@@ -108,7 +108,9 @@ For example:
 ```bash
 ./nps_dlc.sh /home/tux/Downloads/DLC.tsv PCSE00986
 ```
-Every DLC is placed in a created directory from the current working directory named <\TITLE\_ID\_dlc>.
+Every DLC is placed in `<TITLE_ID>_dlc` under `NPS_OUTPUT_DIR`. Existing archives are matched individually by title ID and the DLC identifier from the TSV Content ID column, so rerunning downloads only missing DLCs. When Content ID is unavailable, the script checks the exact archive name after downloading the package. Exit code 5 means every available DLC is already present; downloading any missing DLC returns 0, unless links or keys are missing (4).
+
+Run the offline DLC regression tests with `python3 -m unittest discover -s tests`. The tests use mock download and packaging tools, including repeat runs of `nps_region.sh -r JP -d . -t dlc`.
 
 ### nps\_psm.sh
 With this script you can download a PSM game.
