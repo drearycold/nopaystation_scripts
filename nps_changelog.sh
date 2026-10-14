@@ -5,6 +5,7 @@ SCRIPT_DIR="$(dirname "$(readlink -f "$(which "${0}")")")"
 
 # source shared functions
 . "${SCRIPT_DIR}/functions.sh"
+nps_load_config
 
 my_usage() {
     echo ""
@@ -27,5 +28,4 @@ then
     echo "No game update found."
     exit 2
 fi
-pyNPU.py -ct "${TITLE_ID}" > "${TITLE_ID}_changelog.txt"
-
+pyNPU.py -ct "${TITLE_ID}" > "${NPS_OUTPUT_DIR}/${TITLE_ID}_changelog.txt"

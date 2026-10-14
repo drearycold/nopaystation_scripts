@@ -3,6 +3,56 @@
 ext="7z"
 mime_type="application/x-7z-compressed"
 
+nps_load_config() {
+    local call_dir config_file env_download env_extract env_output env_checksum_action
+
+    call_dir="$(pwd)"
+    config_file="${XDG_CONFIG_HOME:-${HOME}/.config}/nopaystation/config"
+    env_download="${NPS_DOWNLOAD_DIR:-}"
+    env_extract="${NPS_EXTRACT_DIR:-}"
+    env_output="${NPS_OUTPUT_DIR:-}"
+    env_checksum_action="${NPS_CHECKSUM_MISMATCH_ACTION:-}"
+
+    NPS_DOWNLOAD_DIR="${call_dir}"
+    NPS_EXTRACT_DIR="${call_dir}"
+    NPS_OUTPUT_DIR="${call_dir}"
+    NPS_CHECKSUM_MISMATCH_ACTION="no"
+    if [ -f "${config_file}" ]
+    then
+        . "${config_file}"
+    fi
+
+    test -n "${env_download}" && NPS_DOWNLOAD_DIR="${env_download}"
+    test -n "${env_extract}" && NPS_EXTRACT_DIR="${env_extract}"
+    test -n "${env_output}" && NPS_OUTPUT_DIR="${env_output}"
+    test -n "${env_checksum_action}" && NPS_CHECKSUM_MISMATCH_ACTION="${env_checksum_action}"
+
+    mkdir -p "${NPS_DOWNLOAD_DIR}" "${NPS_EXTRACT_DIR}" "${NPS_OUTPUT_DIR}" || exit 1
+    NPS_DOWNLOAD_DIR="$(cd "${NPS_DOWNLOAD_DIR}" && pwd)"
+    NPS_EXTRACT_DIR="$(cd "${NPS_EXTRACT_DIR}" && pwd)"
+    NPS_OUTPUT_DIR="$(cd "${NPS_OUTPUT_DIR}" && pwd)"
+    export NPS_DOWNLOAD_DIR NPS_EXTRACT_DIR NPS_OUTPUT_DIR NPS_CHECKSUM_MISMATCH_ACTION
+}
+
+nps_temp_dir() {
+    local parent label
+
+    parent="${1}"
+    label="${2}"
+    mktemp -d "${parent%/}/nps-${label}.XXXXXX"
+}
+
+nps_cleanup_dir() {
+    local directory parent
+
+    directory="${1}"
+    parent="${2}"
+    case "${directory}" in
+        "${parent%/}"/nps-*) rm -rf "${directory}" ;;
+        *) echo "Refusing to remove unexpected temporary directory: ${directory}" >&2 ;;
+    esac
+}
+
 sha256_choose() {
     if which sha256 > /dev/null 2>&1
     then
@@ -124,27 +174,62 @@ check_valid_psp_id() {
 
 yesno_checksum() {
     local GAME_ID="${1}"
+    local DOWNLOAD_FILE="${2:-${GAME_ID}.pkg}"
     while true
     do
         echo "Do you want to continue? (yes/no)"
-        read INPUT
+        if ! read INPUT
+        then
+            INPUT="no"
+        fi
         case "${INPUT}" in
             Yes|YES|yes|Y|y)
                 break
                 ;;
             No|NO|no|n)
                 echo "User aborted."
-                test -e "${GAME_ID}.pkg" && rm "${GAME_ID}.pkg"
-                if [ ${?} -eq 0 ]
+                if [ -n "${DOWNLOAD_FILE}" ] && [ -e "${DOWNLOAD_FILE}" ]
                 then
-                    echo "Downloaded file removed."
-                else
-                    echo "Something went wrong while removing pkg file."
+                    if rm "${DOWNLOAD_FILE}"
+                    then
+                        echo "Downloaded file removed."
+                    else
+                        echo "Something went wrong while removing pkg file."
+                    fi
                 fi
                 exit 1
                 ;;
         esac
     done
+}
+
+checksum_mismatch_action() {
+    local DOWNLOAD_FILE="${1}"
+    local ACTION
+
+    ACTION="$(printf '%s' "${NPS_CHECKSUM_MISMATCH_ACTION:-no}" | tr '[:upper:]' '[:lower:]')"
+    case "${ACTION}" in
+        yes|continue)
+            echo "Continuing despite checksum mismatch."
+            ;;
+        prompt|ask|interactive)
+            yesno_checksum "" "${DOWNLOAD_FILE}"
+            ;;
+        no|abort|"")
+            echo "Aborting because of checksum mismatch."
+            if [ -n "${DOWNLOAD_FILE}" ] && [ -e "${DOWNLOAD_FILE}" ]
+            then
+                rm "${DOWNLOAD_FILE}"
+                echo "Downloaded file removed."
+            fi
+            exit 1
+            ;;
+        *)
+            echo "Invalid NPS_CHECKSUM_MISMATCH_ACTION: ${NPS_CHECKSUM_MISMATCH_ACTION}" >&2
+            echo "Use no, yes, or prompt. Aborting." >&2
+            exit 1
+            ;;
+    esac
 }
 exit_if_fail() {
     local _msg="${1}"
@@ -168,13 +253,14 @@ check_announce_url() {
 compare_checksum(){
     local LIST="${1}"
     local FILE="${2}"
+    local DOWNLOAD_FILE="${3:-}"
     if [ -n "${LIST}" ]
     then
         if [ "${FILE}" != "${LIST}" ]
         then
             echo "Checksum of downloaded file does not match checksum in list"
             echo "${FILE} != ${LIST}"
-            yesno_checksum
+            checksum_mismatch_action "${DOWNLOAD_FILE}"
         fi
     else
         echo "No checksum available in *.tsv list."

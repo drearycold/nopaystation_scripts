@@ -7,6 +7,7 @@ SCRIPT_DIR="$(dirname "$(readlink -f "$(which "${0}")")")"
 
 # source shared functions
 . "${SCRIPT_DIR}/functions.sh"
+nps_load_config
 
 check_region() {
     local REGION="${1}"
@@ -284,7 +285,7 @@ esac
 
 COLLECTION_NAME="Sony - PlayStation Vita (${REGION_COLLECTION}) - (${TYPE})"
 
-MY_PATH=$(pwd)
+MY_PATH="${NPS_OUTPUT_DIR}"
 test ! -d "${MY_PATH}/${COLLECTION_NAME}" && mkdir "${MY_PATH}/${COLLECTION_NAME}"
 cd "${MY_PATH}/${COLLECTION_NAME}"
 
@@ -296,21 +297,21 @@ do
     echo "Downloading and packing \"${TITLE_ID}\"..."
     if [ ${DOWNLOAD_ALL} -eq 1 ]
     then
-        nps_game.sh "${NPS_ABSOLUTE_PATH}/PSV_GAMES.tsv" "${TITLE_ID}"
+        NPS_OUTPUT_DIR="${MY_PATH}/${COLLECTION_NAME}" nps_game.sh "${NPS_ABSOLUTE_PATH}/PSV_GAMES.tsv" "${TITLE_ID}"
         check_return_code ${?} "game"
         GAME_NAME="$(cat "${TITLE_ID}.txt")"
         GAME_NAME="$(region_rename "${GAME_NAME}")"
         if [ ${UPDATE_ALL} -eq 1 ]
         then
-            DESTDIR="${GAME_NAME}" nps_update.sh -a "${TITLE_ID}"
+            NPS_OUTPUT_DIR="${MY_PATH}/${COLLECTION_NAME}" DESTDIR="${GAME_NAME}" nps_update.sh -a "${TITLE_ID}"
         else
-            DESTDIR="${GAME_NAME}" nps_update.sh "${TITLE_ID}"
+            NPS_OUTPUT_DIR="${MY_PATH}/${COLLECTION_NAME}" DESTDIR="${GAME_NAME}" nps_update.sh "${TITLE_ID}"
         fi
         check_return_code ${?} "update"
-        DESTDIR="${GAME_NAME}" nps_dlc.sh "${NPS_ABSOLUTE_PATH}/PSV_DLCS.tsv" "${TITLE_ID}"
+        NPS_OUTPUT_DIR="${MY_PATH}/${COLLECTION_NAME}" DESTDIR="${GAME_NAME}" nps_dlc.sh "${NPS_ABSOLUTE_PATH}/PSV_DLCS.tsv" "${TITLE_ID}"
         check_return_code ${?} "dlc"
     else
-        "${download_script}" ${PARAMS} "${TITLE_ID}"
+        NPS_OUTPUT_DIR="${MY_PATH}/${COLLECTION_NAME}" "${download_script}" ${PARAMS} "${TITLE_ID}"
         check_return_code ${?} "${TYPE}"
     fi
     ### remove temporary game name file

@@ -13,6 +13,7 @@ SCRIPT_DIR="$(dirname "$(readlink -f "$(which "${0}")")")"
 
 # source shared functions
 . "${SCRIPT_DIR}/functions.sh"
+nps_load_config
 
 my_usage() {
     echo ""
@@ -84,11 +85,11 @@ then
     echo "\"${GANE_ID}\" is only available via cartridge"
     exit 3
 else
-    if find . -maxdepth 1 -type f -name "*[${TITLE_ID}]*.${ext}" | grep -q -E "\[${TITLE_ID}\].*\.${ext}"
+    if find "${NPS_OUTPUT_DIR}" -maxdepth 1 -type f -name "*[${TITLE_ID}]*.${ext}" | grep -q -E "\[${TITLE_ID}\].*\.${ext}"
     then
-        FOUND_FILE=$(find . -maxdepth 1 -type f -name "*[${TITLE_ID}]*.${ext}" | grep -E "\[${TITLE_ID}\].*\.${ext}" | sed 's@\./@@g')
+        FOUND_FILE=$(find "${NPS_OUTPUT_DIR}" -maxdepth 1 -type f -name "*[${TITLE_ID}]*.${ext}" | grep -E "\[${TITLE_ID}\].*\.${ext}" | head -n 1)
         # write package name into txt file for depending steps like downloading dlc and update
-        echo "${FOUND_FILE}" | sed "s/\.${ext}//g" > "${TITLE_ID}.txt"
+        basename "${FOUND_FILE}" ".${ext}" > "${NPS_OUTPUT_DIR}/${TITLE_ID}.txt"
 
         # test if archive is a ${ext} file
         if [ "$(file -b --mime-type "${FOUND_FILE}")" = "${mime_type}" ]
@@ -103,20 +104,24 @@ else
             exit 5
         fi
     else
-        my_download_file "${LINK}" "${TITLE_ID}.pkg"
-        FILE_SHA256="$(my_sha256 "${TITLE_ID}.pkg")"
-        compare_checksum "${LIST_SHA256}" "${FILE_SHA256}"
+        DOWNLOAD_WORK="$(nps_temp_dir "${NPS_DOWNLOAD_DIR}" "${TITLE_ID}-psm-download")" || exit 1
+        EXTRACT_WORK="$(nps_temp_dir "${NPS_EXTRACT_DIR}" "${TITLE_ID}-psm-extract")" || exit 1
+        PKG_FILE="${DOWNLOAD_WORK}/${TITLE_ID}.pkg"
+        my_download_file "${LINK}" "${PKG_FILE}"
+        FILE_SHA256="$(my_sha256 "${PKG_FILE}")"
+        compare_checksum "${LIST_SHA256}" "${FILE_SHA256}" "${PKG_FILE}"
 
         # get file name and modify it
-        pkg2zip -l "${TITLE_ID}.pkg" | sed 's/.zip//g' > "${TITLE_ID}.txt"
-        MY_FILE_NAME="$(cat "${TITLE_ID}.txt")"
+        pkg2zip -l "${PKG_FILE}" | sed 's/.zip//g' > "${NPS_OUTPUT_DIR}/${TITLE_ID}.txt"
+        MY_FILE_NAME="$(cat "${NPS_OUTPUT_DIR}/${TITLE_ID}.txt")"
         MY_FILE_NAME="$(region_rename "${MY_FILE_NAME}")"
-        test -d "psm/" && rm -rf "psm/"
-        pkg2zip -x "${TITLE_ID}.pkg" "${KEY}"
+        cd "${EXTRACT_WORK}" || exit 1
+        pkg2zip -x "${PKG_FILE}" "${KEY}"
         # add the -rs parameter until a bug on the t7z port for FreeBSD is fixed
-        t7z -ba -rs a "${MY_FILE_NAME}.${ext}" "psm/"
-        rm -rf "psm/"
-        rm "${TITLE_ID}.pkg"
+        t7z -ba -rs a "${NPS_OUTPUT_DIR}/${MY_FILE_NAME}.${ext}" "psm/"
+        cd "${NPS_OUTPUT_DIR}" || exit 1
+        nps_cleanup_dir "${EXTRACT_WORK}" "${NPS_EXTRACT_DIR}"
+        nps_cleanup_dir "${DOWNLOAD_WORK}" "${NPS_DOWNLOAD_DIR}"
     fi
 fi
 exit 0

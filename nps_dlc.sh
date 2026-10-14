@@ -13,6 +13,7 @@ SCRIPT_DIR="$(dirname "$(readlink -f "${0}")")"
 
 # source shared functions
 . "${SCRIPT_DIR}/functions.sh"
+nps_load_config
 
 my_usage(){
     echo ""
@@ -43,7 +44,7 @@ then
 fi
 
 check_valid_psv_id "${GAME_ID}"
-MY_PATH="$(pwd)"
+MY_PATH="${NPS_OUTPUT_DIR}"
 
 # make DESTDIR overridable
 if [ -z "${DESTDIR}" ]
@@ -107,24 +108,26 @@ do
             cd "${MY_PATH}"
             exit 5
         else
-            my_download_file "${LINK}" "${GAME_ID}_dlc.pkg"
-            FILE_SHA256="$(my_sha256 "${GAME_ID}_dlc.pkg")"
-            compare_checksum "${LIST_SHA256}" "${FILE_SHA256}"
+            DOWNLOAD_WORK="$(nps_temp_dir "${NPS_DOWNLOAD_DIR}" "${GAME_ID}-dlc-download")" || exit 1
+            EXTRACT_WORK="$(nps_temp_dir "${NPS_EXTRACT_DIR}" "${GAME_ID}-dlc-extract")" || exit 1
+            PKG_FILE="${DOWNLOAD_WORK}/${GAME_ID}_dlc.pkg"
+            my_download_file "${LINK}" "${PKG_FILE}"
+            FILE_SHA256="$(my_sha256 "${PKG_FILE}")"
+            compare_checksum "${LIST_SHA256}" "${FILE_SHA256}" "${PKG_FILE}"
 
             # get file name and modify it
-            pkg2zip -l "${GAME_ID}_dlc.pkg" | sed 's/\.zip//g' > "${GAME_ID}_dlc.txt"
-            MY_FILE_NAME="$(cat "${GAME_ID}_dlc.txt")"
+            pkg2zip -l "${PKG_FILE}" | sed 's/\.zip//g' > "${EXTRACT_WORK}/${GAME_ID}_dlc.txt"
+            MY_FILE_NAME="$(cat "${EXTRACT_WORK}/${GAME_ID}_dlc.txt")"
             MY_FILE_NAME="$(region_rename "${MY_FILE_NAME}")"
 
             # extract files and compress them with t7z
-            test -d "addcont/" && rm -rf "addcont/"
-            pkg2zip -x "${GAME_ID}_dlc.pkg" "${KEY}"
+            cd "${EXTRACT_WORK}" || exit 1
+            pkg2zip -x "${PKG_FILE}" "${KEY}"
             # add the -rs parameter until a bug on the t7z port for FreeBSD is fixed
-            t7z -ba -rs a "${MY_FILE_NAME}.7z" "addcont/"
-            rm -rf "addcont/"
-            rm "${GAME_ID}_dlc.pkg"
-            rm "${GAME_ID}_dlc.txt"
+            t7z -ba -rs a "${MY_PATH}/${DESTDIR}_dlc/${MY_FILE_NAME}.7z" "addcont/"
             cd "${MY_PATH}"
+            nps_cleanup_dir "${EXTRACT_WORK}" "${NPS_EXTRACT_DIR}"
+            nps_cleanup_dir "${DOWNLOAD_WORK}" "${NPS_DOWNLOAD_DIR}"
         fi
     fi
 done

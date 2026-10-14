@@ -12,6 +12,7 @@ SCRIPT_DIR="$(dirname "$(readlink -f "$(which "${0}")")")"
 
 # source shared functions
 . "${SCRIPT_DIR}/functions.sh"
+nps_load_config
 
 # check for "-a" parameter
 if [ "${1}" == "-a" ]
@@ -46,7 +47,7 @@ fi
 check_valid_psv_id "${TITLE_ID}"
 
 # get current working directory
-MY_PATH="$(pwd)"
+MY_PATH="${NPS_OUTPUT_DIR}"
 
 
 # test if any update is available
@@ -111,21 +112,23 @@ do
         cd "${MY_PATH}"
         exit 5
     else
-        my_download_file "${i}" "${TITLE_ID}_update.pkg"
+        DOWNLOAD_WORK="$(nps_temp_dir "${NPS_DOWNLOAD_DIR}" "${TITLE_ID}-update-download")" || exit 1
+        EXTRACT_WORK="$(nps_temp_dir "${NPS_EXTRACT_DIR}" "${TITLE_ID}-update-extract")" || exit 1
+        PKG_FILE="${DOWNLOAD_WORK}/${TITLE_ID}_update.pkg"
+        my_download_file "${i}" "${PKG_FILE}"
 
-        pkg2zip -l "${TITLE_ID}_update.pkg" | sed 's/\.zip//g' > "${TITLE_ID}_update.txt"
-        MY_FILE_NAME="$(cat "${TITLE_ID}_update.txt")"
+        pkg2zip -l "${PKG_FILE}" | sed 's/\.zip//g' > "${EXTRACT_WORK}/${TITLE_ID}_update.txt"
+        MY_FILE_NAME="$(cat "${EXTRACT_WORK}/${TITLE_ID}_update.txt")"
         MY_FILE_NAME="$(region_rename "${MY_FILE_NAME}")"
 
         # extract files and compress them with t7z
-        test -d "patch/" && rm -rf "patch/"
-        pkg2zip -x "${TITLE_ID}_update.pkg"
+        cd "${EXTRACT_WORK}" || exit 1
+        pkg2zip -x "${PKG_FILE}"
         # add the -rs parameter until a bug on the t7z port for FreeBSD is fixed
-        t7z  -ba -rs a "${MY_FILE_NAME}.${ext}" "patch/"
-        rm -rf "patch/"
-        rm "${TITLE_ID}_update.pkg"
-        rm "${TITLE_ID}_update.txt"
+        t7z -ba -rs a "${MY_PATH}/${DESTDIR}_update/${MY_FILE_NAME}.${ext}" "patch/"
         cd "${MY_PATH}"
+        nps_cleanup_dir "${EXTRACT_WORK}" "${NPS_EXTRACT_DIR}"
+        nps_cleanup_dir "${DOWNLOAD_WORK}" "${NPS_DOWNLOAD_DIR}"
     fi
 done
 

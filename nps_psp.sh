@@ -12,6 +12,7 @@ SCRIPT_DIR="$(dirname "$(readlink -f "$(which "${0}")")")"
 
 # source shared functions
 . "${SCRIPT_DIR}/functions.sh"
+nps_load_config
 
 my_usage() {
     echo ""
@@ -72,11 +73,14 @@ then
     echo "\"${GANE_ID}\" is only available via cartridge"
     exit 3
 else
-    my_download_file "${LINK}" "${GAME_ID}.pkg"
-    FILE_SHA256="$(my_sha256 "${GAME_ID}.pkg")"
-    compare_checksum "${LIST_SHA256}" "${FILE_SHA256}"
+    DOWNLOAD_WORK="$(nps_temp_dir "${NPS_DOWNLOAD_DIR}" "${GAME_ID}-psp-download")" || exit 1
+    PKG_FILE="${DOWNLOAD_WORK}/${GAME_ID}.pkg"
+    my_download_file "${LINK}" "${PKG_FILE}"
+    FILE_SHA256="$(my_sha256 "${PKG_FILE}")"
+    compare_checksum "${LIST_SHA256}" "${FILE_SHA256}" "${PKG_FILE}"
 
-    pkg2zip -l "${GAME_ID}.pkg" > "${GAME_ID}.txt"
-    pkg2zip "${GAME_ID}.pkg"
-    rm "${GAME_ID}.pkg"
+    pkg2zip -l "${PKG_FILE}" > "${NPS_OUTPUT_DIR}/${GAME_ID}.txt"
+    cd "${NPS_OUTPUT_DIR}" || exit 1
+    pkg2zip "${PKG_FILE}"
+    nps_cleanup_dir "${DOWNLOAD_WORK}" "${NPS_DOWNLOAD_DIR}"
 fi

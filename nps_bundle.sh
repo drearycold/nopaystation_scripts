@@ -7,6 +7,7 @@ SCRIPT_DIR="$(dirname "$(readlink -f "$(which "${0}")")")"
 
 # source shared functions
 . "${SCRIPT_DIR}/functions.sh"
+nps_load_config
 
 ### usage function
 my_usage(){
@@ -119,6 +120,9 @@ then
     echo 'Use "-d <NPS DIR>" parameter'
     exit 1
 fi
+
+NPS_DIR="$(cd "${NPS_DIR}" && pwd)"
+cd "${NPS_OUTPUT_DIR}" || exit 1
 
 ### check if nps tsv file directory exists
 if [ ! -d "${NPS_DIR}" ]

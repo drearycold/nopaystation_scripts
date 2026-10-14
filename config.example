@@ -1,0 +1,7 @@
+# Copy to ~/.config/nopaystation/config and adjust as needed.
+NPS_DOWNLOAD_DIR="${XDG_CACHE_HOME:-${HOME}/.cache}/nopaystation/downloads"
+NPS_EXTRACT_DIR="${XDG_CACHE_HOME:-${HOME}/.cache}/nopaystation/extract"
+NPS_OUTPUT_DIR="${HOME}/Downloads/nopaystation"
+
+# Checksum mismatch policy: no (abort), yes (continue), or prompt.
+NPS_CHECKSUM_MISMATCH_ACTION="no"

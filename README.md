@@ -56,6 +56,21 @@ If you don't have *${HOME}/bin* in your *${PATH}*, try the following.
 test -d "/usr/local/bin" && sudo ln -s "$(pwd)"/nps_*.sh "$(pwd)"/pyNPU.py "/usr/local/bin/"
 ```
 
+## Directory configuration
+
+Copy `config.example` to `~/.config/nopaystation/config`. The three settings are independent:
+
+```sh
+NPS_DOWNLOAD_DIR="${XDG_CACHE_HOME:-${HOME}/.cache}/nopaystation/downloads"
+NPS_EXTRACT_DIR="${XDG_CACHE_HOME:-${HOME}/.cache}/nopaystation/extract"
+NPS_OUTPUT_DIR="${HOME}/Downloads/nopaystation"
+NPS_CHECKSUM_MISMATCH_ACTION="no"
+```
+
+`NPS_DOWNLOAD_DIR` stores temporary network downloads, `NPS_EXTRACT_DIR` stores temporary unpacked files, and `NPS_OUTPUT_DIR` receives final archives, changelogs, and collection directories. Temporary per-run directories are removed after successful completion. If the config file is absent, all three default to the directory where the command was started. An environment variable with the same name overrides the config for one command.
+
+Checksum mismatches abort without prompting by default and remove the downloaded file. Set `NPS_CHECKSUM_MISMATCH_ACTION=yes` to continue despite a mismatch, or `NPS_CHECKSUM_MISMATCH_ACTION=prompt` to ask interactively. An environment value overrides the fixed configuration for that command.
+
 ## Script examples
 
 ### nps\_tsv.sh
@@ -63,7 +78,7 @@ It downloads every \*.tsv file from NoPayStation.com and creates a tar archive w
 ```bash
 ./nps_tsv.sh /path/to/the/output_directory
 ```
-If you don't add the output directory as the first parameter, it uses the current working directory.
+If you don't add the output directory as the first parameter, it uses `NPS_OUTPUT_DIR`.
 You need the \*.tsv file(s) for mostly every other script in this toolset.
 
 ### nps\_game.sh

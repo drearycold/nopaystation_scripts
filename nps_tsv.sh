@@ -5,6 +5,7 @@ SCRIPT_DIR="$(dirname "$(readlink -f "$(which "${0}")")")"
 
 # source shared functions
 . "${SCRIPT_DIR}/functions.sh"
+nps_load_config
 
 HEADER="https://"
 BASE_URL="nopaystation.com"
@@ -21,10 +22,11 @@ check_binaries "${MY_BINARIES}"
 
 if [ -z "${1}" ]
 then
-    DEST="$(pwd)"
+    DEST="${NPS_OUTPUT_DIR}"
 else
     DEST="${1}"
 fi
+mkdir -p "${DEST}" || exit 1
 MY_DATE="$(date "+%Y_%m_%d")"
 if [ -f "${DEST}/${MY_NAME}_${MY_DATE}.tar.gz" ]
 then
@@ -32,17 +34,14 @@ then
     exit 1
 fi
 
-if [ ! -d "${DEST}/${MY_DATE}" ]
-then
-    mkdir -p "${DEST}/${MY_DATE}"
-fi
+DOWNLOAD_WORK="$(nps_temp_dir "${NPS_DOWNLOAD_DIR}" "tsv-${MY_DATE}-download")" || exit 1
+mkdir "${DOWNLOAD_WORK}/${MY_DATE}" || exit 1
 
 for i in ${LIST}
 do
     my_download_file "${HEADER}${BASE_URL}/${MY_URL_PATH}/${i}.tsv" \
-                     "${DEST}/${MY_DATE}/${i}.tsv"
+                     "${DOWNLOAD_WORK}/${MY_DATE}/${i}.tsv"
 done
 
-tar -C "${DEST}" -czf "${DEST}/${MY_NAME}_${MY_DATE}.tar.gz" "${MY_DATE}"
-
-rm -r "${DEST}/${MY_DATE}"
+tar -C "${DOWNLOAD_WORK}" -czf "${DEST}/${MY_NAME}_${MY_DATE}.tar.gz" "${MY_DATE}"
+nps_cleanup_dir "${DOWNLOAD_WORK}" "${NPS_DOWNLOAD_DIR}"
